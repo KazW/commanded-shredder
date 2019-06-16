@@ -16,19 +16,13 @@ store renders the personal fields in the events that have used the key unreadabl
 Please refer to the [CHANGELOG](CHANGELOG.md) for features, bug fixes, and any
 upgrade advice included for each release.
 
-## Installation
+## Getting started and usage guides
 
-If [available in Hex](https://hex.pm/docs/publish), the package can be installed
-by adding `commanded_shredder` to your list of dependencies in `mix.exs`:
+- [Getting started](guides/Getting%20Started.md)
+- [Usage](guides/Usage.md)
+- [Testing](guides/Testing.md)
 
-```elixir
-def deps do
-  [
-    {:commanded_shredder, "~> 0.1.0"}
-  ]
-end
-```
+## License
 
-Documentation can be generated with [ExDoc](https://github.com/elixir-lang/ex_doc)
-and published on [HexDocs](https://hexdocs.pm). Once published, the docs can
-be found at [https://hexdocs.pm/commanded_shredder](https://hexdocs.pm/commanded_shredder).
+This project is licensed under the MIT license. Please refer to the
+[LICENSE](LICENSE.md) for the full license text.
