@@ -1,9 +1,9 @@
-defmodule Commanded.Event.Shredder.MixProject do
+defmodule Commanded.Shredder.MixProject do
   use Mix.Project
 
   def project do
     [
-      app: :commanded_event_shredder,
+      app: :commanded_shredder,
       version: "0.1.0",
       elixir: "~> 1.5",
       start_permanent: Mix.env() == :prod,
@@ -15,7 +15,7 @@ defmodule Commanded.Event.Shredder.MixProject do
   def application do
     [
       extra_applications: [:logger],
-      mod: {Commanded.Event.Shredder.Application, []}
+      mod: {Commanded.Shredder.Application, []}
     ]
   end
 
