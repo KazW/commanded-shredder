@@ -22,7 +22,7 @@ defmodule Commanded.Shredder.Mixfile do
 
   def application do
     [
-      extra_applications: [:logger],
+      extra_applications: [:logger, :crypto],
       mod: {Commanded.Shredder.Application, []}
     ]
   end
@@ -32,7 +32,6 @@ defmodule Commanded.Shredder.Mixfile do
 
   defp aliases do
     [
-      "event_store.reset": ["event_store.drop", "event_store.create", "event_store.init"],
       "ecto.setup": ["ecto.create", "ecto.migrate"],
       "ecto.reset": ["ecto.drop", "ecto.setup"],
       test: ["test --no-start"],
@@ -44,6 +43,7 @@ defmodule Commanded.Shredder.Mixfile do
     [
       {:commanded, ">= 0.18.0", runtime: false},
       {:commanded_ecto_projections, ">= 0.8.0"},
+      {:commanded_scheduler, ">= 0.2.0"},
       {:crontab, "~> 1.1"},
       {:ecto, "~> 3.1"},
       {:elixir_uuid, "~> 1.2"},
@@ -56,14 +56,16 @@ defmodule Commanded.Shredder.Mixfile do
 
       # Build & test tools
       {:ex_doc, ">= 0.0.0", only: :dev},
-      {:mix_test_watch, ">= 0.0.0", only: :dev, runtime: false}
+      {:mix_test_watch, ">= 0.0.0", only: :dev, runtime: false},
+      {:dialyxir, "~> 0.5", only: [:dev], runtime: false},
+      {:credo, "~> 1.0.0", only: [:dev, :test], runtime: false}
     ]
   end
 
   defp description do
     """
-    A data shredder for the Commanded framework in Elixir that shredds via
-    crypto-trashing of personal fields in immutable datastores.
+    A data shredder for the Commanded framework in Elixir, enables the storage
+    of personal information while maintaining good data privacy practices.
     """
   end
 

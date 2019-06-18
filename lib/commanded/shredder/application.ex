@@ -8,8 +8,8 @@ defmodule Commanded.Shredder.Application do
   def start(_type, _args) do
     # List all child processes to be supervised
     children = [
-      # Starts a worker by calling: Commanded.Shredder.Worker.start_link(arg)
-      # {Commanded.Shredder.Worker, arg}
+      Commanded.Shredder.Repo,
+      Commanded.Shredder.Projection
     ]
 
     # See https://hexdocs.pm/elixir/Supervisor.html

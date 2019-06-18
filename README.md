@@ -1,7 +1,8 @@
 # Commanded Shredder [![Build Status](https://travis-ci.org/KazW/commanded-shredder.svg?branch=master)](https://travis-ci.org/KazW/commanded-shredder)
 
 Event shredding for [Commanded](https://github.com/commanded/commanded)
-CQRS/ES applications.
+CQRS/ES applications. Insipred by
+[this article](https://jaxenter.com/event-sourcing-gdpr-150225.html).
 
 Enables the permanent storage of personal user data (names, emails, addresses,
 etc.) in an immutable eventstore while maintaining good data privacy practices.
