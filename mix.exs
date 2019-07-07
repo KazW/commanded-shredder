@@ -34,7 +34,15 @@ defmodule Commanded.Shredder.Mixfile do
     [
       "ecto.setup": ["ecto.create", "ecto.migrate"],
       "ecto.reset": ["ecto.drop", "ecto.setup"],
-      test: ["test --no-start"],
+      test: [
+        "ecto.drop --quiet -r Commanded.Scheduler.Repo",
+        "ecto.drop --quiet -r Commanded.Shredder.Repo",
+        "ecto.create --quiet -r Commanded.Scheduler.Repo",
+        "ecto.create --quiet -r Commanded.Shredder.Repo",
+        "ecto.migrate --quiet -r Commanded.Scheduler.Repo",
+        "ecto.migrate --quiet -r Commanded.Shredder.Repo",
+        "test --no-start"
+      ],
       "test.watch": ["test.watch --no-start"]
     ]
   end
