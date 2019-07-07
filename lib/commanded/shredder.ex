@@ -96,7 +96,7 @@ defmodule Commanded.Shredder do
         },
         [
           key_field: [:user_id, prefix: "users:"],
-          encrypt_fields: [:email]
+          fields: [:email]
         ]
       )
       {:error, "encryption_key_not_found"}
@@ -108,7 +108,7 @@ defmodule Commanded.Shredder do
         },
         [
           key_field: [:user_id, prefix: "users:"],
-          decrypt_fields: [email: "default@example.com"]
+          fields: [email: "default@example.com"]
         ]
       )
       %CreateUser{user_id: "f8f855ab-4ff9-41aa-ba2a-7cd18f79b3a8", email: "bob@alice.com"}
