@@ -2,6 +2,7 @@ defmodule Commanded.Shredder.UpdateEncryptionKey do
   @moduledoc """
   Update an encryption key, currently only the expiry can be updated.
   """
+  @derive Jason.Encoder
 
   @type t :: %__MODULE__{
           encryption_key_uuid: String.t(),
