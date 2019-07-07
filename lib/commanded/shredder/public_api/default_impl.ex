@@ -3,6 +3,8 @@ defmodule Commanded.Shredder.DefaultImpl do
   @behaviour Commanded.Shredder.Impl
 
   @default_name "key:0"
+  @base64_opts [padding: false]
+  @missing_key "key_not_found"
 
   alias Commanded.Shredder.Impl
   @type key_return :: Impl.key_return()
@@ -15,9 +17,9 @@ defmodule Commanded.Shredder.DefaultImpl do
   alias Commanded.Shredder.Repo
   alias Commanded.Shredder.Router
   alias Commanded.Shredder.Projection
+  alias Projection.EncryptionKey
   alias Commanded.Shredder.CreateEncryptionKey
   alias Commanded.Shredder.UpdateEncryptionKey
-  alias Commanded.Shredder.Projection.EncryptionKey
   alias Commanded.Shredder.Options
 
   @spec create_encryption_key(String.t(), expiry :: expiry) :: key_return
@@ -50,26 +52,31 @@ defmodule Commanded.Shredder.DefaultImpl do
         error
 
       key ->
-        crypto_module().encrypt(
-          event,
-          opts |> Options.get_fields() |> Keyword.new(),
-          key
-        )
+        plain_fields = Options.get_plain_fields(opts)
+
+        event
+        |> transform_event(plain_fields, key, &crypto_module().encrypt_value/3)
+        |> transform_event(plain_fields, @base64_opts, &base64_encode/3)
     end
   end
 
   @spec decrypt_event(event :: struct, opts :: Keyword.t()) :: crypto_return
   def decrypt_event(event, opts) do
     case crypto_setup(event, opts) do
+      {:error, @missing_key} ->
+        field_defaults = Options.get_fields(opts)
+        plain_fields = Options.get_plain_fields(opts)
+        transform_event(event, plain_fields, field_defaults, &fill_default_value/3)
+
       {:error, _message} = error ->
         error
 
       key ->
-        crypto_module().decrypt(
-          event,
-          opts |> Options.get_fields() |> Keyword.new(),
-          key
-        )
+        plain_fields = Options.get_plain_fields(opts)
+
+        event
+        |> transform_event(plain_fields, @base64_opts, &base64_decode/3)
+        |> transform_event(plain_fields, key, &crypto_module().decrypt_value/3)
     end
   end
 
@@ -92,8 +99,34 @@ defmodule Commanded.Shredder.DefaultImpl do
     {key_field, prefix} = Options.get_key_field(opts)
 
     case Repo.get(EncryptionKey, prefix <> Map.get(event, key_field)) do
-      nil -> {:error, "key_not_found"}
+      nil -> {:error, @missing_key}
       key -> key
     end
   end
+
+  defp fill_default_value(_value, field, fields),
+    do: Keyword.get(fields, field)
+
+  defp base64_encode(value, _field, opts),
+    do: Base.encode64(value, opts)
+
+  defp base64_decode(value, _field, opts),
+    do: Base.decode64(value, opts)
+
+  defp transform_event(event, fields, extra, transform),
+    do:
+      Enum.reduce(
+        fields,
+        event,
+        &transform_field(&1, &2, extra, transform)
+      )
+
+  defp transform_field(field, event, extra, transform)
+       when is_atom(field),
+       do:
+         Map.put(
+           event,
+           field,
+           event |> Map.get(field, "") |> transform.(field, extra)
+         )
 end

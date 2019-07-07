@@ -5,14 +5,14 @@ defmodule Commanded.Shredder.CryptoImpl do
           Commanded.Shredder.Impl.crypto_return()
 
   @callback encrypt(
-              event :: struct,
-              fields :: list,
+              value :: binary,
+              field :: atom,
               key :: EncryptionKey.t()
             ) :: crypto_return
 
   @callback decrypt(
-              event :: struct,
-              fields :: list,
+              value :: binary,
+              field :: atom,
               key :: EncryptionKey.t()
             ) :: crypto_return
 end

@@ -63,11 +63,24 @@ defmodule Commanded.Shredder.Options do
     end
   end
 
-  @spec get_fields(opts :: Keyword.t()) :: list | nil
-  def get_fields(opts),
-    do:
+  @spec get_plain_fields(opts :: Keyword.t()) :: [atom] | nil
+  def get_plain_fields(opts) do
+    case get_fields(opts) do
+      nil -> nil
+      fields -> Keyword.keys(fields)
+    end
+  end
+
+  @spec get_fields(opts :: Keyword.t()) :: Keyword.t() | nil
+  def get_fields(opts) do
+    fields =
       Keyword.get(opts, :fields)
       |> normalize_fields()
+
+    if Keyword.keyword?(fields) do
+      Keyword.new(fields)
+    end
+  end
 
   defp normalize_fields(fields)
        when is_list(fields),
