@@ -1,26 +1,29 @@
 defmodule Commanded.Shredder.Crypto do
   @behaviour Commanded.Shredder.CryptoImpl
 
-  @type crypto_return :: Commanded.Shredder.Impl.crypto_return()
   alias Commanded.Shredder.Projection.EncryptionKey
 
   @algorithms %{
     "AES256GCM" => :aes_gcm
   }
 
-  @callback default_algorithm :: binary
+  @spec default_algorithm :: binary
   def default_algorithm,
     do: "AES256GCM"
 
-  @callback supported_algorithms :: [binary]
+  @spec supported_algorithms :: [binary]
   def supported_algorithms,
     do: Map.keys(@algorithms)
+
+  @spec generate_key(algorithm :: binary) :: binary
+  def generate_key(_algorithm),
+    do: :crypto.strong_rand_bytes(32)
 
   @spec encrypt(
           value :: binary,
           field :: atom,
           key :: EncryptionKey.t()
-        ) :: crypto_return
+        ) :: binary
   def encrypt(value, _field, %EncryptionKey{key: key, algorithm: algorithm}) do
     iv = :crypto.strong_rand_bytes(16)
 
@@ -39,15 +42,24 @@ defmodule Commanded.Shredder.Crypto do
           value :: binary,
           field :: atom,
           key :: EncryptionKey.t()
-        ) :: crypto_return
-  def decrypt(value, _field, %EncryptionKey{key: key, algorithm: algorithm}) do
-    <<iv::binary-16, tag::binary-16, ciphertext::binary>> = value
-
-    :crypto.block_decrypt(
-      Map.get(@algorithms, algorithm),
-      key,
-      iv,
-      {algorithm, ciphertext, tag}
-    )
-  end
+        ) :: binary
+  def decrypt(
+        <<
+          iv::binary-16,
+          tag::binary-16,
+          ciphertext::binary
+        >>,
+        _field,
+        %EncryptionKey{
+          key: key,
+          algorithm: algorithm
+        }
+      ),
+      do:
+        :crypto.block_decrypt(
+          Map.get(@algorithms, algorithm),
+          key,
+          iv,
+          {algorithm, ciphertext, tag}
+        )
 end

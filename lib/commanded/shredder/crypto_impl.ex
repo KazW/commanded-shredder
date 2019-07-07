@@ -1,23 +1,21 @@
 defmodule Commanded.Shredder.CryptoImpl do
   alias Commanded.Shredder.Projection.EncryptionKey
 
-  @type crypto_return ::
-          Commanded.Shredder.Impl.crypto_return()
-
   @callback default_algorithm :: binary
   @callback supported_algorithms :: [binary]
+  @callback generate_key(algorithm :: binary) :: binary
 
   @callback encrypt(
               value :: binary,
               field :: atom,
               key :: EncryptionKey.t()
-            ) :: crypto_return
+            ) :: binary
 
   @callback decrypt(
               value :: binary,
               field :: atom,
               key :: EncryptionKey.t()
-            ) :: crypto_return
+            ) :: binary
 
   @spec crypto_module :: atom
   def crypto_module,

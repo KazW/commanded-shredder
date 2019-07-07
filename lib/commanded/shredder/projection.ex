@@ -70,7 +70,7 @@ defmodule Commanded.Shredder.Projection do
            %EncryptionKey{
              encryption_key_uuid: encryption_key_uuid,
              name: name,
-             key: :crypto.strong_rand_bytes(32),
+             key: crypto_module().generate_key(algorithm),
              algorithm: algorithm,
              expiry: truncate_expiry(expiry)
            }
@@ -106,4 +106,7 @@ defmodule Commanded.Shredder.Projection do
 
   defp truncate_expiry(%NaiveDateTime{} = expiry),
     do: NaiveDateTime.truncate(expiry, :second)
+
+  defp crypto_module,
+    do: Commanded.Shredder.CryptoImpl.crypto_module()
 end
