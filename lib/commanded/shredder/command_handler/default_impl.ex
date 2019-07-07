@@ -36,7 +36,7 @@ defmodule Commanded.Shredder.CommandHandler.DefaultImpl do
         }
       ) do
     case NaiveDateTime.compare(now(), truncate(expiry)) do
-      :gt ->
+      :lt ->
         create_expiry_schedule(expiry, encryption_key_uuid, name)
 
         [
