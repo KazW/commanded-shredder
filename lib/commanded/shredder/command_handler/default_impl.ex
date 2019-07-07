@@ -33,7 +33,7 @@ defmodule Commanded.Shredder.CommandHandler.DefaultImpl do
         }
       ) do
     with :ok <- validate_expiry(expiry), :ok <- validate_algorithm(algorithm) do
-      if %NaiveDateTime{} = expiry do
+      if expiry do
         create_expiry_schedule(expiry, encryption_key_uuid)
       end
 
@@ -74,7 +74,7 @@ defmodule Commanded.Shredder.CommandHandler.DefaultImpl do
     with :ok <- validate_expiry(expiry) do
       if(old_expiry or is_nil(expiry), do: cancel_expiry_schedule(encryption_key_uuid))
 
-      if %NaiveDateTime{} = expiry do
+      if expiry do
         create_expiry_schedule(expiry, encryption_key_uuid)
       end
 
@@ -82,7 +82,7 @@ defmodule Commanded.Shredder.CommandHandler.DefaultImpl do
         %EncryptionKeyUpdated{
           encryption_key_uuid: encryption_key_uuid,
           name: name,
-          expiry: if(expiry, do: truncate(expiry))
+          expiry: truncate(expiry)
         }
       ]
     end
