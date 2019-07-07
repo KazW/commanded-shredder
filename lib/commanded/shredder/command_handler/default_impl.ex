@@ -33,9 +33,7 @@ defmodule Commanded.Shredder.CommandHandler.DefaultImpl do
         }
       ) do
     with :ok <- validate_expiry(expiry), :ok <- validate_algorithm(algorithm) do
-      if expiry do
-        create_expiry_schedule(expiry, encryption_key_uuid)
-      end
+      create_expiry_schedule(expiry, encryption_key_uuid)
 
       [
         %EncryptionKeyCreated{
@@ -72,11 +70,10 @@ defmodule Commanded.Shredder.CommandHandler.DefaultImpl do
         }
       ) do
     with :ok <- validate_expiry(expiry) do
-      if(old_expiry or is_nil(expiry), do: cancel_expiry_schedule(encryption_key_uuid))
+      if old_expiry or is_nil(expiry),
+        do: cancel_expiry_schedule(encryption_key_uuid)
 
-      if expiry do
-        create_expiry_schedule(expiry, encryption_key_uuid)
-      end
+      create_expiry_schedule(expiry, encryption_key_uuid)
 
       [
         %EncryptionKeyUpdated{
@@ -128,13 +125,16 @@ defmodule Commanded.Shredder.CommandHandler.DefaultImpl do
           name: name
         },
         %DeleteEncryptionKey{}
-      ),
-      do: [
-        %EncryptionKeyDeleted{
-          encryption_key_uuid: encryption_key_uuid,
-          name: name
-        }
-      ]
+      ) do
+    cancel_expiry_schedule(encryption_key_uuid)
+
+    [
+      %EncryptionKeyDeleted{
+        encryption_key_uuid: encryption_key_uuid,
+        name: name
+      }
+    ]
+  end
 
   defp validate_expiry(nil), do: :ok
 
@@ -183,6 +183,8 @@ defmodule Commanded.Shredder.CommandHandler.DefaultImpl do
         schedule_uuid: expiry_schedule_prefix() <> encryption_key_uuid
       }
       |> ScheduleRouter.dispatch(consistency: :strong)
+
+  defp create_expiry_schedule(nil, _encryption_key_uuid), do: :ok
 
   defp create_expiry_schedule(%NaiveDateTime{} = expiry, encryption_key_uuid),
     do:
