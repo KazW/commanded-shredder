@@ -53,11 +53,12 @@ defmodule Commanded.Shredder.EncryptionKey do
 
   def apply(
         %__MODULE__{} = encryption_key,
-        %EncryptionKeyCreated{expiry: expiry}
+        %EncryptionKeyUpdated{name: name, expiry: expiry}
       ),
       do: %{
         encryption_key
-        | expiry: expiry
+        | name: name,
+          expiry: expiry
       }
 
   def apply(%__MODULE__{} = encryption_key, _event),

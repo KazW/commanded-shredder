@@ -12,11 +12,11 @@ defmodule Commanded.Shredder.Projection do
     @primary_key false
     schema "encryption_keys" do
       field(:encryption_key_uuid, :string, primary_key: true)
-      field(:name, :string, primary_key: true)
 
       field(:key, :binary)
-      field(:key_type, :string)
+      field(:algorithm, :string)
       field(:key_options, :map)
+      field(:name, :string)
       field(:expiry, :naive_datetime)
 
       timestamps()
@@ -30,69 +30,80 @@ defmodule Commanded.Shredder.Projection do
   alias Commanded.Shredder.Repo
   alias Commanded.Shredder.Projection.EncryptionKey
 
-  project(%EncryptionKeyCreated{} = created, fn multi ->
-    %EncryptionKeyCreated{
-      encryption_key_uuid: encryption_key_uuid,
-      name: name,
-      expiry: expiry
-    } = created
+  project(
+    %EncryptionKeyCreated{} = created,
+    &create_key(&1, created)
+  )
 
-    encryption_key = %EncryptionKey{
-      encryption_key_uuid: encryption_key_uuid,
-      name: name,
-      key: :crypto.strong_rand_bytes(32),
-      key_type: "AES256GCM",
-      expiry: truncate_expiry(expiry)
-    }
+  project(
+    %EncryptionKeyUpdated{} = updated,
+    &update_key(&1, updated)
+  )
 
-    Ecto.Multi.insert(multi, :create_key, encryption_key)
-  end)
+  project(
+    %EncryptionKeyDeleted{encryption_key_uuid: encryption_key_uuid},
+    &delete_key(&1, encryption_key_uuid)
+  )
 
-  project(%EncryptionKeyUpdated{} = updated, fn multi ->
-    %EncryptionKeyUpdated{
-      encryption_key_uuid: encryption_key_uuid,
-      name: name,
-      expiry: expiry
-    } = updated
+  project(
+    %EncryptionKeyExpired{encryption_key_uuid: encryption_key_uuid},
+    &delete_key(&1, encryption_key_uuid)
+  )
 
-    Ecto.Multi.update(
-      multi,
-      :update_key,
-      Ecto.Changeset.change(
-        encryption_key_uuid |> encryption_key_query(name) |> Repo.one!(),
-        %{expiry: truncate_expiry(expiry)}
+  defp encryption_key_query(encryption_key_uuid),
+    do:
+      from(
+        key in EncryptionKey,
+        where: key.encryption_key_uuid == ^encryption_key_uuid
       )
-    )
-  end)
 
-  project(
-    %EncryptionKeyDeleted{encryption_key_uuid: encryption_key_uuid, name: name},
-    &delete_key(&1, name, encryption_key_uuid)
-  )
+  defp create_key(multi, %EncryptionKeyCreated{
+         encryption_key_uuid: encryption_key_uuid,
+         name: name,
+         algorithm: algorithm,
+         expiry: expiry
+       }),
+       do:
+         Ecto.Multi.insert(
+           multi,
+           :create_key,
+           %EncryptionKey{
+             encryption_key_uuid: encryption_key_uuid,
+             name: name,
+             key: :crypto.strong_rand_bytes(32),
+             algorithm: algorithm,
+             expiry: truncate_expiry(expiry)
+           }
+         )
 
-  project(
-    %EncryptionKeyExpired{encryption_key_uuid: encryption_key_uuid, name: name},
-    &delete_key(&1, name, encryption_key_uuid)
-  )
+  defp update_key(multi, %EncryptionKeyUpdated{
+         encryption_key_uuid: encryption_key_uuid,
+         name: name,
+         expiry: expiry
+       }),
+       do:
+         Ecto.Multi.update(
+           multi,
+           :update_key,
+           Ecto.Changeset.change(
+             encryption_key_query(encryption_key_uuid) |> Repo.one!(),
+             %{
+               name: name,
+               expiry: truncate_expiry(expiry)
+             }
+           )
+         )
+
+  defp delete_key(multi, encryption_key_uuid),
+    do:
+      Ecto.Multi.delete_all(
+        multi,
+        :delete_key,
+        encryption_key_query(encryption_key_uuid)
+      )
 
   defp truncate_expiry(nil), do: nil
 
   defp truncate_expiry(%NaiveDateTime{} = expiry),
     do: NaiveDateTime.truncate(expiry, :second)
-
-  defp delete_key(multi, name, encryption_key_uuid),
-    do:
-      Ecto.Multi.delete_all(
-        multi,
-        :delete_key,
-        encryption_key_query(encryption_key_uuid, name)
-      )
-
-  defp encryption_key_query(encryption_key_uuid, name),
-    do:
-      from(
-        key in EncryptionKey,
-        where: key.encryption_key_uuid == ^encryption_key_uuid,
-        where: key.name == ^name
-      )
 end

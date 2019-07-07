@@ -4,7 +4,7 @@ defmodule Commanded.Shredder.DefaultImpl do
 
   @default_name "key:0"
   @base64_opts [padding: false]
-  @missing_key "key_not_found"
+  @missing_key "encryption_key_not_found"
 
   alias Commanded.Shredder.Impl
   @type key_return :: Impl.key_return()
@@ -12,15 +12,13 @@ defmodule Commanded.Shredder.DefaultImpl do
   @type error :: Impl.error()
   @type expiry :: Impl.expiry()
 
-  import Ecto.Query
-
   alias Commanded.Shredder.Repo
   alias Commanded.Shredder.Router
+  alias Commanded.Shredder.Options
   alias Commanded.Shredder.Projection
-  alias Projection.EncryptionKey
   alias Commanded.Shredder.CreateEncryptionKey
   alias Commanded.Shredder.UpdateEncryptionKey
-  alias Commanded.Shredder.Options
+  alias Commanded.Shredder.Projection.EncryptionKey
 
   @spec create_encryption_key(String.t(), expiry :: expiry) :: key_return
   def create_encryption_key(encryption_key_uuid, expiry),
@@ -81,12 +79,7 @@ defmodule Commanded.Shredder.DefaultImpl do
   end
 
   defp crypto_module,
-    do:
-      Application.get_env(
-        :commanded_shredder,
-        :crypto_impl,
-        Commanded.Shredder.Crypto
-      )
+    do: Commanded.Shredder.CryptoImpl.crypto_module()
 
   defp crypto_setup(event, opts) do
     with :ok <- Options.validate_options(opts),

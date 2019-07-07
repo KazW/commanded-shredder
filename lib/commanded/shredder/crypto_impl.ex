@@ -4,6 +4,9 @@ defmodule Commanded.Shredder.CryptoImpl do
   @type crypto_return ::
           Commanded.Shredder.Impl.crypto_return()
 
+  @callback default_algorithm :: binary
+  @callback supported_algorithms :: [binary]
+
   @callback encrypt(
               value :: binary,
               field :: atom,
@@ -15,4 +18,13 @@ defmodule Commanded.Shredder.CryptoImpl do
               field :: atom,
               key :: EncryptionKey.t()
             ) :: crypto_return
+
+  @spec crypto_module :: atom
+  def crypto_module,
+    do:
+      Application.get_env(
+        :commanded_shredder,
+        :crypto_impl,
+        Commanded.Shredder.Crypto
+      )
 end

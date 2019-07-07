@@ -5,12 +5,10 @@ defmodule Commanded.Shredder.ExpireEncryptionKey do
   @derive Jason.Encoder
 
   @type t :: %__MODULE__{
-          encryption_key_uuid: String.t(),
-          name: String.t()
+          encryption_key_uuid: String.t()
         }
 
   defstruct [
-    :encryption_key_uuid,
-    :name
+    :encryption_key_uuid
   ]
 end

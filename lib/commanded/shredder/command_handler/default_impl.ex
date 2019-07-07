@@ -17,38 +17,34 @@ defmodule Commanded.Shredder.CommandHandler.DefaultImpl do
 
   @type error :: {:error, String.t()}
 
+  @missing_key "encryption_key_not_found"
+
   @spec create_encryption_key(
           encryption_key :: EncryptionKey.t(),
           create_command :: CreateEncryptionKey.t()
         ) :: [EncryptionKeyCreated.t()] | error
   def create_encryption_key(
         %EncryptionKey{encryption_key_uuid: nil},
-        %CreateEncryptionKey{encryption_key_uuid: encryption_key_uuid, name: name, expiry: nil}
-      ),
-      do: [%EncryptionKeyCreated{encryption_key_uuid: encryption_key_uuid, name: name}]
-
-  def create_encryption_key(
-        %EncryptionKey{encryption_key_uuid: nil},
         %CreateEncryptionKey{
           encryption_key_uuid: encryption_key_uuid,
           name: name,
-          expiry: %NaiveDateTime{} = expiry
+          algorithm: algorithm,
+          expiry: expiry
         }
       ) do
-    case NaiveDateTime.compare(now(), truncate(expiry)) do
-      :lt ->
-        create_expiry_schedule(expiry, encryption_key_uuid, name)
+    with :ok <- validate_expiry(expiry), :ok <- validate_algorithm(algorithm) do
+      if %NaiveDateTime{} = expiry do
+        create_expiry_schedule(expiry, encryption_key_uuid)
+      end
 
-        [
-          %EncryptionKeyCreated{
-            encryption_key_uuid: encryption_key_uuid,
-            name: name,
-            expiry: truncate(expiry)
-          }
-        ]
-
-      _ ->
-        {:error, "expiry_passed"}
+      [
+        %EncryptionKeyCreated{
+          encryption_key_uuid: encryption_key_uuid,
+          name: name,
+          algorithm: algorithm || default_algorithm(),
+          expiry: truncate(expiry)
+        }
+      ]
     end
   end
 
@@ -66,40 +62,29 @@ defmodule Commanded.Shredder.CommandHandler.DefaultImpl do
       do: no_encryption_key()
 
   def update_encryption_key(
-        %EncryptionKey{expiry: nil},
-        %UpdateEncryptionKey{expiry: nil}
-      ),
-      do: []
-
-  def update_encryption_key(
         %EncryptionKey{
           encryption_key_uuid: encryption_key_uuid,
-          name: name,
           expiry: old_expiry
         },
-        %UpdateEncryptionKey{expiry: expiry}
+        %UpdateEncryptionKey{
+          name: name,
+          expiry: expiry
+        }
       ) do
-    result = [
-      %EncryptionKeyUpdated{
-        encryption_key_uuid: encryption_key_uuid,
-        name: name,
-        expiry: if(expiry, do: truncate(expiry))
-      }
-    ]
+    with :ok <- validate_expiry(expiry) do
+      if(old_expiry or is_nil(expiry), do: cancel_expiry_schedule(encryption_key_uuid))
 
-    if is_nil(expiry) do
-      cancel_expiry_schedule(encryption_key_uuid)
-      result
-    else
-      case NaiveDateTime.compare(now(), truncate(expiry)) do
-        :gt ->
-          if(old_expiry, do: cancel_expiry_schedule(encryption_key_uuid))
-          create_expiry_schedule(expiry, encryption_key_uuid, name)
-          result
-
-        _ ->
-          {:error, "expiry_passed"}
+      if %NaiveDateTime{} = expiry do
+        create_expiry_schedule(expiry, encryption_key_uuid)
       end
+
+      [
+        %EncryptionKeyUpdated{
+          encryption_key_uuid: encryption_key_uuid,
+          name: name,
+          expiry: if(expiry, do: truncate(expiry))
+        }
+      ]
     end
   end
 
@@ -151,8 +136,37 @@ defmodule Commanded.Shredder.CommandHandler.DefaultImpl do
         }
       ]
 
-  defp no_encryption_key, do: {:error, "non_existent_encryption_key"}
+  defp validate_expiry(nil), do: :ok
+
+  defp validate_expiry(%NaiveDateTime{} = expiry) do
+    case NaiveDateTime.compare(now(), truncate(expiry)) do
+      :lt -> :ok
+      _ -> {:error, "expiry_passed"}
+    end
+  end
+
+  defp validate_algorithm(nil), do: :ok
+
+  defp validate_algorithm(algorithm) do
+    if algorithm in supported_algorithms() do
+      :ok
+    else
+      {:error, "unsupported_algorithm"}
+    end
+  end
+
+  defp crypto_module,
+    do: Commanded.Shredder.CryptoImpl.crypto_module()
+
+  defp default_algorithm,
+    do: crypto_module().default_algorithm()
+
+  defp supported_algorithms,
+    do: crypto_module().supported_algorithms()
+
+  defp no_encryption_key, do: {:error, @missing_key}
   defp now, do: NaiveDateTime.utc_now() |> truncate()
+  defp truncate(nil), do: nil
   defp truncate(expiry), do: NaiveDateTime.truncate(expiry, :second)
 
   defp expiry_schedule_prefix,
@@ -170,11 +184,11 @@ defmodule Commanded.Shredder.CommandHandler.DefaultImpl do
       }
       |> ScheduleRouter.dispatch(consistency: :strong)
 
-  defp create_expiry_schedule(%NaiveDateTime{} = expiry, encryption_key_uuid, name),
+  defp create_expiry_schedule(%NaiveDateTime{} = expiry, encryption_key_uuid),
     do:
       Commanded.Scheduler.schedule_once(
         expiry_schedule_prefix() <> encryption_key_uuid,
-        %ExpireEncryptionKey{encryption_key_uuid: encryption_key_uuid, name: name},
+        %ExpireEncryptionKey{encryption_key_uuid: encryption_key_uuid},
         truncate(expiry)
       )
 end
