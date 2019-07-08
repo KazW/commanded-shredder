@@ -70,9 +70,7 @@ defmodule Commanded.Shredder.CommandHandler.DefaultImpl do
         }
       ) do
     with :ok <- validate_expiry(expiry) do
-      if old_expiry or is_nil(expiry),
-        do: cancel_expiry_schedule(encryption_key_uuid)
-
+      cancel_expiry_schedule(expiry, old_expiry, encryption_key_uuid)
       create_expiry_schedule(expiry, encryption_key_uuid)
 
       [
@@ -122,11 +120,12 @@ defmodule Commanded.Shredder.CommandHandler.DefaultImpl do
   def delete_encryption_key(
         %EncryptionKey{
           encryption_key_uuid: encryption_key_uuid,
-          name: name
+          name: name,
+          expiry: expiry
         },
         %DeleteEncryptionKey{}
       ) do
-    cancel_expiry_schedule(encryption_key_uuid)
+    cancel_expiry_schedule(nil, expiry, encryption_key_uuid)
 
     [
       %EncryptionKeyDeleted{
@@ -177,12 +176,29 @@ defmodule Commanded.Shredder.CommandHandler.DefaultImpl do
         "encryption_key_expiry:"
       )
 
-  defp cancel_expiry_schedule(encryption_key_uuid),
-    do:
-      %Commanded.Scheduler.CancelSchedule{
-        schedule_uuid: expiry_schedule_prefix() <> encryption_key_uuid
-      }
-      |> ScheduleRouter.dispatch(consistency: :strong)
+  defp cancel_expiry_schedule(
+         nil = _new_expiry,
+         %NaiveDateTime{} = _old_expiry,
+         encryption_key_uuid
+       ),
+       do:
+         %Commanded.Scheduler.CancelSchedule{
+           schedule_uuid: expiry_schedule_prefix() <> encryption_key_uuid
+         }
+         |> ScheduleRouter.dispatch(consistency: :strong)
+
+  defp cancel_expiry_schedule(
+         %NaiveDateTime{} = new_expiry,
+         %NaiveDateTime{} = old_expiry,
+         encryption_key_uuid
+       ) do
+    case NaiveDateTime.compare(new_expiry, old_expiry) do
+      :eq -> :ok
+      _ -> cancel_expiry_schedule(nil, old_expiry, encryption_key_uuid)
+    end
+  end
+
+  defp cancel_expiry_schedule(nil = _new_expiry, nil = _old_expiry, _encryption_key_uuid), do: :ok
 
   defp create_expiry_schedule(nil, _encryption_key_uuid), do: :ok
 
